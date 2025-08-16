@@ -3,13 +3,14 @@ import { useMonadGamesID } from '../hooks/useMonadGamesID';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { Button } from '@/components/ui/button.jsx';
-import { Trophy, Medal, Award, User, Clock, Zap, RotateCcw, RefreshCw, Crown } from 'lucide-react';
+import { Trophy, Medal, Award, User, Clock, Zap, RotateCcw, RefreshCw, Crown, ExternalLink } from 'lucide-react';
 
 const Leaderboard = () => {
-  const { getLeaderboard, username, accountAddress, hasUsername } = useMonadGamesID();
+  const { getLeaderboard, username, accountAddress, hasUsername, authenticated } = useMonadGamesID();
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const fetchLeaderboard = async () => {
     try {
@@ -17,6 +18,7 @@ const Leaderboard = () => {
       setError(null);
       const data = await getLeaderboard();
       setLeaderboard(data);
+      setLastUpdated(new Date());
     } catch (err) {
       setError('Failed to load leaderboard');
       console.error('Error fetching leaderboard:', err);
@@ -27,7 +29,12 @@ const Leaderboard = () => {
 
   useEffect(() => {
     fetchLeaderboard();
-  }, []);
+    
+    // Auto-refresh leaderboard every 30 seconds
+    const interval = setInterval(fetchLeaderboard, 30000);
+    
+    return () => clearInterval(interval);
+  }, [authenticated, hasUsername]);
 
   const getRankIcon = (rank) => {
     switch (rank) {
@@ -70,7 +77,11 @@ const Leaderboard = () => {
     }
   };
 
-  if (loading) {
+  const openMonadGamesID = () => {
+    window.open('https://monad-games-id-site.vercel.app/', '_blank');
+  };
+
+  if (loading && leaderboard.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -92,7 +103,7 @@ const Leaderboard = () => {
     );
   }
 
-  if (error) {
+  if (error && leaderboard.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -125,17 +136,57 @@ const Leaderboard = () => {
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5" />
               Global Leaderboard
+              {loading && <RefreshCw className="h-4 w-4 animate-spin ml-2" />}
             </CardTitle>
             <CardDescription>
               Top temporal architects across the Monad network
+              {lastUpdated && (
+                <span className="block text-xs mt-1">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
             </CardDescription>
           </div>
-          <Button onClick={fetchLeaderboard} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={openMonadGamesID} variant="outline" size="sm">
+              <ExternalLink className="h-4 w-4 mr-1" />
+              Monad Games ID
+            </Button>
+            <Button onClick={fetchLeaderboard} variant="outline" size="sm" disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
+        {!authenticated && (
+          <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="h-4 w-4 text-blue-500" />
+              <span className="font-semibold text-sm">Connect to Compete</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Connect your Monad Games ID to submit scores and appear on the leaderboard
+            </p>
+          </div>
+        )}
+
+        {authenticated && !hasUsername && (
+          <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="h-4 w-4 text-yellow-500" />
+              <span className="font-semibold text-sm">Register Username</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Register a username to appear on the leaderboard and compete with other players
+            </p>
+            <Button onClick={openMonadGamesID} size="sm" variant="outline">
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Register Now
+            </Button>
+          </div>
+        )}
+
         {leaderboard.length === 0 ? (
           <div className="text-center py-8">
             <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -187,15 +238,15 @@ const Leaderboard = () => {
                   </div>
 
                   <div className="text-right">
-                    <div className="font-bold text-lg">{player.score.toLocaleString()}</div>
+                    <div className="font-bold text-lg">{player.score?.toLocaleString() || 0}</div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Zap className="h-3 w-3" />
-                        {player.efficiency}%
+                        {player.efficiency || 0}%
                       </div>
                       <div className="flex items-center gap-1">
                         <RotateCcw className="h-3 w-3" />
-                        {player.loops}
+                        {player.loops || 0}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -218,6 +269,7 @@ const Leaderboard = () => {
             <p>• Scores are verified and recorded on Monad Testnet</p>
             <p>• Rankings update in real-time across all games</p>
             <p>• Your Monad Games ID preserves your identity across games</p>
+            <p>• Leaderboard refreshes automatically every 30 seconds</p>
           </div>
         </div>
       </CardContent>

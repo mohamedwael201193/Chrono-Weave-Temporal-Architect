@@ -22,10 +22,10 @@ export const monadTestnet = {
 
 // Privy configuration for Monad Games ID integration
 export const privyConfig = {
-  appId: import.meta.env.VITE_PRIVY_APP_ID || 'cmd8euall0037l5ixqjvhqnhg', // Your Privy App ID
+  appId: import.meta.env.VITE_PRIVY_APP_ID, // Your Privy App ID from .env.local
   config: {
     loginMethodsAndOrder: {
-      primary: ['cmd8euall0037le0my79qpz42'], // This is the Cross App ID for Monad Games ID
+      primary: ['email', 'wallet', 'privy:cmd8euall0037le0my79qpz42'], // Use 'privy:' prefix for cross-app ID
     },
     appearance: {
       theme: 'dark',
@@ -56,10 +56,12 @@ export const gameConfig = {
   version: '1.0.0',
 };
 
-// Monad Games ID API endpoints
+// Monad Games ID API endpoints (These should be the actual Monad Games ID API endpoints, not the game's Vercel URL)
 export const monadGamesAPI = {
   checkWallet: 'https://monad-games-id-site.vercel.app/api/check-wallet',
-  registerUsername: 'https://monad-games-id-site.vercel.app/',
+  registerUsername: 'https://monad-games-id-site.vercel.app/api/register-username',
+  submitScore: 'https://monad-games-id-site.vercel.app/api/submit-score',
+  leaderboard: 'https://monad-games-id-site.vercel.app/api/leaderboard',
 };
 
 // Cross App ID for Monad Games ID (DO NOT CHANGE)
