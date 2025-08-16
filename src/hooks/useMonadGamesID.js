@@ -23,11 +23,18 @@ export const useMonadGamesID = () => {
         fetchUsername(walletAddress);
       } else if (user.wallet?.address) {
         // Fallback to embedded wallet if no cross-app account is found
+        // This handles cases where the user logs in directly with email/wallet without Monad Games ID initially
         setAccountAddress(user.wallet.address);
         fetchUsername(user.wallet.address);
       } else {
-        setError("No linked Monad Games ID account or embedded wallet found.");
+        setError("No linked Monad Games ID account or embedded wallet found. Please connect a wallet.");
       }
+    } else if (ready && !authenticated) {
+      // Clear state if not authenticated
+      setAccountAddress(null);
+      setUsername(null);
+      setHasUsername(false);
+      setError(null);
     }
   }, [authenticated, user, ready]);
 
@@ -38,7 +45,7 @@ export const useMonadGamesID = () => {
       const response = await fetch(`${monadGamesAPI.checkWallet}?wallet=${walletAddress}`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch username');
+        throw new Error(`Failed to fetch username: ${response.statusText}`);
       }
       
       const data = await response.json();
@@ -51,7 +58,7 @@ export const useMonadGamesID = () => {
         setUsername(null);
       }
     } catch (err) {
-      setError('Failed to fetch username');
+      setError(`Error fetching username: ${err.message}`);
       console.error('Error fetching username:', err);
     } finally {
       setLoading(false);
@@ -60,12 +67,15 @@ export const useMonadGamesID = () => {
 
   const submitScore = async (score, transactionCount = 1) => {
     if (!accountAddress) {
-      throw new Error('No wallet address available');
+      throw new Error('No wallet address available to submit score.');
+    }
+    if (!hasUsername) {
+      throw new Error('Please reserve a username before submitting scores.');
     }
 
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      
       const response = await fetch(monadGamesAPI.submitScore, {
         method: 'POST',
         headers: {
@@ -82,7 +92,7 @@ export const useMonadGamesID = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit score to leaderboard');
+        throw new Error(`Failed to submit score: ${response.statusText}`);
       }
 
       const result = await response.json();
@@ -97,6 +107,7 @@ export const useMonadGamesID = () => {
         username
       };
     } catch (err) {
+      setError(`Error submitting score: ${err.message}`);
       console.error('Error submitting score:', err);
       throw err;
     } finally {
@@ -109,9 +120,9 @@ export const useMonadGamesID = () => {
   };
 
   const getLeaderboard = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      
       const response = await fetch(`${monadGamesAPI.leaderboard}?gameId=chrono-weave-temporal-architect`);
       
       if (response.ok) {
@@ -119,7 +130,6 @@ export const useMonadGamesID = () => {
         return data.leaderboard || [];
       }
       
-      // Fallback to mock data if API is not available or response is not ok
       console.warn('Failed to fetch real leaderboard data, falling back to mock data.');
       const mockPlayers = [
         'TemporalMaster', 'QuantumArchitect', 'ChronoWeaver', 'EnergyOptimizer', 'TimeLooper',
@@ -157,6 +167,7 @@ export const useMonadGamesID = () => {
 
       return leaderboard;
     } catch (err) {
+      setError(`Error fetching leaderboard: ${err.message}`);
       console.error('Error fetching leaderboard:', err);
       return [];
     } finally {
