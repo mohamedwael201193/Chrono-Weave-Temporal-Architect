@@ -1,11 +1,11 @@
 import { PrivyProvider } from '@privy-io/react-auth'
-import { WagmiProvider } from '@privy-io/wagmi-connector'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { http, createConfig } from 'wagmi'
-import { defineChain } from 'viem'
+import { WagmiConfig, createConfig, configureChains } from 'wagmi'
+import { QueryClient } from '@tanstack/react-query'
+import { publicProvider } from 'wagmi/providers/public'
+import { jsonRpcProvider } from 'wagmi/providers/jsonRpc'
 
 // Define Monad Testnet
-export const monadTestnet = defineChain({
+export const monadTestnet = {
   id: 41454,
   name: 'Monad Testnet',
   network: 'monad-testnet',
@@ -15,25 +15,33 @@ export const monadTestnet = defineChain({
     symbol: 'MON',
   },
   rpcUrls: {
-    default: {
-      http: ['https://testnet-rpc.monad.xyz'],
-    },
-    public: {
-      http: ['https://testnet-rpc.monad.xyz'],
-    },
+    default: { http: ['https://testnet1.monad.xyz'] },
+    public: { http: ['https://testnet1.monad.xyz'] },
   },
   blockExplorers: {
-    default: { name: 'Monad Explorer', url: 'https://testnet-explorer.monad.xyz' },
+    default: { name: 'Monad Explorer', url: 'https://explorer-testnet.monad.xyz' },
   },
   testnet: true,
-})
+}
+
+// Configure chains and providers
+const { chains, publicClient, webSocketPublicClient } = configureChains(
+  [monadTestnet],
+  [
+    jsonRpcProvider({
+      rpc: (chain) => ({
+        http: chain.rpcUrls.default.http[0],
+      }),
+    }),
+    publicProvider(),
+  ]
+)
 
 // Wagmi configuration
 export const wagmiConfig = createConfig({
-  chains: [monadTestnet],
-  transports: {
-    [monadTestnet.id]: http(),
-  },
+  autoConnect: true,
+  publicClient,
+  webSocketPublicClient,
 })
 
 // Query client for React Query

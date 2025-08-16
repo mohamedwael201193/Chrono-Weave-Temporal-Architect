@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
-    "@privy-io/react-auth": "^2.21.3",
-    "@privy-io/wagmi-connector": "^0.1.13",
+    "@privy-io/react-auth": "^1.88.4",
+    "@privy-io/wagmi-connector": "^0.1.12",
     "@radix-ui/react-accordion": "^1.2.10",
     "@radix-ui/react-alert-dialog": "^1.1.13",
     "@radix-ui/react-aspect-ratio": "^1.1.6",
@@ -61,8 +61,8 @@
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^4.1.7",
     "vaul": "^1.1.2",
-    "viem": "^2.33.3",
-    "wagmi": "^2.16.3",
+    "viem": "^1.21.4",
+    "wagmi": "^1.4.13",
     "zod": "^3.24.4"
   },
   "devDependencies": {
