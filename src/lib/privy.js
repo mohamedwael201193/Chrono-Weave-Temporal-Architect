@@ -65,3 +65,5 @@ export const monadGamesAPI = {
 // Cross App ID for Monad Games ID (DO NOT CHANGE)
 export const MONAD_GAMES_CROSS_APP_ID = 'cmd8euall0037le0my79qpz42';
 
+
+
