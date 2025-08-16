@@ -56,16 +56,15 @@ export const gameConfig = {
   version: '1.0.0',
 };
 
-// Monad Games ID API endpoints (These should be the actual Monad Games ID API endpoints, not the game's Vercel URL)
+// Monad Games ID API endpoints (These should be the actual Monad Games ID API endpoints, not the game\'s Vercel URL)
 export const monadGamesAPI = {
   checkWallet: 'https://monad-games-id-site.vercel.app/api/check-wallet',
-  registerUsername: 'https://monad-games-id-site.vercel.app/api/register-username',
+  registerUsername: 'https://monad-games-id-site.vercel.app/', // Corrected to base URL for registration
   submitScore: 'https://monad-games-id-site.vercel.app/api/submit-score',
   leaderboard: 'https://monad-games-id-site.vercel.app/api/leaderboard',
 };
 
 // Cross App ID for Monad Games ID (DO NOT CHANGE)
 export const MONAD_GAMES_CROSS_APP_ID = 'cmd8euall0037le0my79qpz42';
-
 
 

@@ -12,20 +12,24 @@ export const useMonadGamesID = () => {
 
   useEffect(() => {
     if (authenticated && user && ready) {
+      let walletAddress = null;
+
+      // Try to get the cross-app account wallet address first
       const crossAppAccount = user.linkedAccounts.find(
         account => account.type === "cross_app" && 
         account.providerApp?.id === MONAD_GAMES_CROSS_APP_ID
       );
 
       if (crossAppAccount && crossAppAccount.wallet?.address) {
-        const walletAddress = crossAppAccount.wallet.address;
-        setAccountAddress(walletAddress);
-        fetchUsername(walletAddress);
+        walletAddress = crossAppAccount.wallet.address;
       } else if (user.wallet?.address) {
         // Fallback to embedded wallet if no cross-app account is found
-        // This handles cases where the user logs in directly with email/wallet without Monad Games ID initially
-        setAccountAddress(user.wallet.address);
-        fetchUsername(user.wallet.address);
+        walletAddress = user.wallet.address;
+      }
+
+      if (walletAddress) {
+        setAccountAddress(walletAddress);
+        fetchUsername(walletAddress);
       } else {
         setError("No linked Monad Games ID account or embedded wallet found. Please connect a wallet.");
       }
