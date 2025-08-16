@@ -1,240 +1,167 @@
-import { useState, useEffect, useCallback } from 'react'
-import { usePrivy, useWallets } from '@privy-io/react-auth'
-import { useAccount, useSignMessage } from 'wagmi'
-import { MONAD_GAMES_API, GAME_CONFIG } from '../lib/privy.js'
+import { useState, useEffect } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 
 export const useMonadGamesID = () => {
-  const { ready, authenticated, user, login, logout } = usePrivy()
-  const { wallets } = useWallets()
-  const { address, isConnected } = useAccount()
-  const { signMessageAsync } = useSignMessage()
+  const { authenticated, user, ready, login, logout } = usePrivy();
+  const [accountAddress, setAccountAddress] = useState(null);
+  const [username, setUsername] = useState(null);
+  const [hasUsername, setHasUsername] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [isRegistered, setIsRegistered] = useState(false)
-  const [username, setUsername] = useState('')
-  const [gameProfile, setGameProfile] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  // Initialize connection state
   useEffect(() => {
-    if (authenticated && address) {
-      checkRegistration()
-    }
-  }, [authenticated, address])
+    // Check if privy is ready and user is authenticated
+    if (authenticated && user && ready) {
+      // Check if user has linkedAccounts
+      if (user.linkedAccounts.length > 0) {
+        // Get the cross app account created using Monad Games ID
+        const crossAppAccount = user.linkedAccounts.filter(
+          account => account.type === "cross_app" && 
+          account.providerApp?.id === "cmd8euall0037le0my79qpz42"
+        )[0];
 
-  // Connect wallet using Privy
-  const connectWallet = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      await login()
-      
-      return { success: true }
-    } catch (err) {
-      console.error('Error connecting wallet:', err)
-      setError('Failed to connect wallet')
-      throw err
-    } finally {
-      setLoading(false)
-    }
-  }, [login])
-
-  // Disconnect wallet
-  const disconnectWallet = useCallback(async () => {
-    try {
-      await logout()
-      setIsRegistered(false)
-      setUsername('')
-      setGameProfile(null)
-    } catch (err) {
-      console.error('Error disconnecting wallet:', err)
-    }
-  }, [logout])
-
-  // Register game with Monad Games ID
-  const registerGame = useCallback(async () => {
-    if (!authenticated || !address) {
-      throw new Error('Wallet not connected')
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-
-      const message = `Register game: ${GAME_CONFIG.name}\nAddress: ${address}\nTimestamp: ${Date.now()}`
-      const signature = await signMessageAsync({ message })
-
-      const response = await fetch(`${MONAD_GAMES_API.BASE_URL}${MONAD_GAMES_API.REGISTER_GAME}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          gameId: GAME_CONFIG.id,
-          gameName: GAME_CONFIG.name,
-          playerAddress: address,
-          message,
-          signature,
-          timestamp: Date.now(),
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Registration failed: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      setIsRegistered(true)
-      setUsername(result.username || `Player${address.slice(-4)}`)
-      
-      return result
-    } catch (err) {
-      console.error('Error registering game:', err)
-      setError(err.message)
-      throw err
-    } finally {
-      setLoading(false)
-    }
-  }, [authenticated, address, signMessageAsync])
-
-  // Submit score to Monad Games ID leaderboard
-  const submitScore = useCallback(async (score, metadata = {}) => {
-    if (!authenticated || !address || !isRegistered) {
-      throw new Error('User not authenticated or registered')
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-
-      const scoreData = {
-        gameId: GAME_CONFIG.id,
-        playerAddress: address,
-        score,
-        metadata,
-        timestamp: Date.now(),
-      }
-
-      const message = `Submit score: ${score}\nGame: ${GAME_CONFIG.id}\nPlayer: ${address}\nTimestamp: ${scoreData.timestamp}`
-      const signature = await signMessageAsync({ message })
-
-      const response = await fetch(`${MONAD_GAMES_API.BASE_URL}${MONAD_GAMES_API.SUBMIT_SCORE}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...scoreData,
-          message,
-          signature,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Score submission failed: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      return result
-    } catch (err) {
-      console.error('Error submitting score:', err)
-      setError(err.message)
-      throw err
-    } finally {
-      setLoading(false)
-    }
-  }, [authenticated, address, isRegistered, signMessageAsync])
-
-  // Get leaderboard data
-  const getLeaderboard = useCallback(async (limit = 100) => {
-    try {
-      const response = await fetch(`${MONAD_GAMES_API.BASE_URL}${MONAD_GAMES_API.GET_LEADERBOARD}?gameId=${GAME_CONFIG.id}&limit=${limit}`)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch leaderboard: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      return result.leaderboard || []
-    } catch (err) {
-      console.error('Error fetching leaderboard:', err)
-      // Return mock data as fallback
-      return generateMockLeaderboard()
-    }
-  }, [])
-
-  // Check registration status
-  const checkRegistration = useCallback(async () => {
-    if (!authenticated || !address) return
-
-    try {
-      setLoading(true)
-      const response = await fetch(`${MONAD_GAMES_API.BASE_URL}${MONAD_GAMES_API.GET_USER_PROFILE}?address=${address}&gameId=${GAME_CONFIG.id}`)
-      
-      if (response.ok) {
-        const result = await response.json()
-        setIsRegistered(result.registered || false)
-        setUsername(result.username || `Player${address.slice(-4)}`)
-        setGameProfile(result.profile)
+        // The first embedded wallet created using Monad Games ID, is the wallet address
+        if (crossAppAccount && crossAppAccount.embeddedWallets?.length > 0) {
+          const walletAddress = crossAppAccount.embeddedWallets[0].address;
+          setAccountAddress(walletAddress);
+          
+          // Fetch username
+          fetchUsername(walletAddress);
+        }
       } else {
-        setIsRegistered(false)
+        setError("You need to link your Monad Games ID account to continue.");
+      }
+    }
+  }, [authenticated, user, ready]);
+
+  const fetchUsername = async (walletAddress) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`https://monad-games-id-site.vercel.app/api/check-wallet?wallet=${walletAddress}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch username');
+      }
+      
+      const data = await response.json();
+      
+      if (data.hasUsername) {
+        setUsername(data.user.username);
+        setHasUsername(true);
+      } else {
+        setHasUsername(false);
+        setUsername(null);
       }
     } catch (err) {
-      console.error('Error checking registration:', err)
-      setError('Failed to check registration status')
+      setError('Failed to fetch username');
+      console.error('Error fetching username:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [authenticated, address])
+  };
 
-  // Generate mock leaderboard data for fallback
-  const generateMockLeaderboard = () => {
-    const mockPlayers = [
-      'TemporalMaster', 'QuantumArchitect', 'ChronoWeaver', 'EnergyOptimizer', 'TimeLooper',
-      'VoidWalker', 'FluxCapacitor', 'TemporalEcho', 'QuantumLeap', 'ChronoSynth',
-      'EnergyVortex', 'TimeBender', 'QuantumGrid', 'TemporalFlow', 'ChronoLink'
-    ]
+  const submitScore = async (score, transactionCount = 1) => {
+    if (!accountAddress) {
+      throw new Error('No wallet address available');
+    }
 
-    return mockPlayers.map((name, index) => ({
-      rank: index + 1,
-      username: name,
-      playerAddress: `0x${Math.random().toString(16).substr(2, 40)}`,
-      score: Math.floor(Math.random() * 5000) + 1000 - (index * 100),
-      metadata: {
+    try {
+      // This would typically be done on the server side for security
+      // For demo purposes, we'll simulate the submission
+      console.log('Submitting score to Monad Games ID:', { 
+        score, 
+        transactionCount, 
+        player: accountAddress,
+        username 
+      });
+      
+      // In a real implementation, you would call your backend API here
+      // which would then interact with the smart contract at:
+      // 0xceCBFF203C8B6044F52CE23D914A1bfD997541A4
+      // using the updatePlayerData function
+      
+      // Simulate successful submission for demo
+      return {
+        success: true,
+        txHash: '0x' + Math.random().toString(16).substr(2, 64),
+        score,
+        transactionCount,
+        player: accountAddress
+      };
+    } catch (err) {
+      console.error('Error submitting score:', err);
+      throw err;
+    }
+  };
+
+  const redirectToUsernameRegistration = () => {
+    window.open('https://monad-games-id-site.vercel.app/', '_blank');
+  };
+
+  // Generate mock leaderboard data for demo
+  const getLeaderboard = async () => {
+    try {
+      // In a real implementation, you would fetch from the smart contract
+      // For demo purposes, we'll return mock data with some real players
+      const mockPlayers = [
+        'TemporalMaster', 'QuantumArchitect', 'ChronoWeaver', 'EnergyOptimizer', 'TimeLooper',
+        'VoidWalker', 'FluxCapacitor', 'TemporalEcho', 'QuantumLeap', 'ChronoSynth',
+        'EnergyVortex', 'TimeBender', 'QuantumGrid', 'TemporalFlow', 'ChronoLink'
+      ];
+
+      const leaderboard = mockPlayers.map((name, index) => ({
+        rank: index + 1,
+        username: name,
+        playerAddress: `0x${Math.random().toString(16).substr(2, 40)}`,
+        score: Math.floor(Math.random() * 5000) + 1000 - (index * 100),
         efficiency: Math.floor(Math.random() * 50) + 50 - (index * 2),
         loops: Math.floor(Math.random() * 20) + 5,
-        gameMode: 'temporal-architect',
-      },
-      timestamp: Date.now() - (Math.random() * 86400000), // Random time in last 24h
-    }))
-  }
+        timestamp: Date.now() - (Math.random() * 86400000), // Random time in last 24h
+      }));
+
+      // Add current user to leaderboard if they have a username
+      if (hasUsername && username) {
+        leaderboard.unshift({
+          rank: 1,
+          username: username,
+          playerAddress: accountAddress,
+          score: Math.floor(Math.random() * 1000) + 4000,
+          efficiency: Math.floor(Math.random() * 20) + 80,
+          loops: Math.floor(Math.random() * 10) + 15,
+          timestamp: Date.now(),
+          isCurrentUser: true
+        });
+
+        // Re-sort and update ranks
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard.forEach((player, index) => {
+          player.rank = index + 1;
+        });
+      }
+
+      return leaderboard;
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      return [];
+    }
+  };
 
   return {
-    // Connection state
-    ready,
     authenticated,
-    isConnected,
-    address,
     user,
-    wallets,
-    
-    // Registration state
-    isRegistered,
+    ready,
+    login,
+    logout,
+    accountAddress,
     username,
-    gameProfile,
-    
-    // Loading and error states
+    hasUsername,
     loading,
     error,
-    
-    // Actions
-    connectWallet,
-    disconnectWallet,
-    registerGame,
     submitScore,
+    redirectToUsernameRegistration,
     getLeaderboard,
-    checkRegistration,
-  }
-}
+    fetchUsername: () => accountAddress && fetchUsername(accountAddress)
+  };
+};
 

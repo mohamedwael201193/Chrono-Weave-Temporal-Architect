@@ -1,258 +1,229 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Trophy, Medal, Award, Clock, Zap, Target, Users } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import { useMonadGamesID } from '../hooks/useMonadGamesID';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
+import { Badge } from '@/components/ui/badge.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Trophy, Medal, Award, User, Clock, Zap, RotateCcw, RefreshCw, Crown } from 'lucide-react';
 
-const Leaderboard = ({ currentScore, currentEfficiency, currentLoop, playerAddress }) => {
-  const [leaderboardData, setLeaderboardData] = useState([])
-  const [playerRank, setPlayerRank] = useState(null)
-  const [loading, setLoading] = useState(false)
+const Leaderboard = () => {
+  const { getLeaderboard, username, accountAddress, hasUsername } = useMonadGamesID();
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock leaderboard data - in real implementation, this would come from Monad Games ID
-  const mockLeaderboardData = [
-    {
-      rank: 1,
-      username: "TemporalMaster",
-      address: "0x1234...5678",
-      score: 15420,
-      efficiency: 94,
-      loops: 12,
-      timestamp: Date.now() - 3600000
-    },
-    {
-      rank: 2,
-      username: "QuantumArchitect",
-      address: "0x2345...6789",
-      score: 14850,
-      efficiency: 91,
-      loops: 11,
-      timestamp: Date.now() - 7200000
-    },
-    {
-      rank: 3,
-      username: "ChronoEngineer",
-      address: "0x3456...7890",
-      score: 13920,
-      efficiency: 88,
-      loops: 10,
-      timestamp: Date.now() - 10800000
-    },
-    {
-      rank: 4,
-      username: "VoidWeaver",
-      address: "0x4567...8901",
-      score: 12750,
-      efficiency: 85,
-      loops: 9,
-      timestamp: Date.now() - 14400000
-    },
-    {
-      rank: 5,
-      username: "EnergyConduit",
-      address: "0x5678...9012",
-      score: 11680,
-      efficiency: 82,
-      loops: 8,
-      timestamp: Date.now() - 18000000
+  const fetchLeaderboard = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getLeaderboard();
+      setLeaderboard(data);
+    } catch (err) {
+      setError('Failed to load leaderboard');
+      console.error('Error fetching leaderboard:', err);
+    } finally {
+      setLoading(false);
     }
-  ]
+  };
 
   useEffect(() => {
-    // Simulate loading leaderboard data
-    setLoading(true)
-    setTimeout(() => {
-      setLeaderboardData(mockLeaderboardData)
-      setLoading(false)
-      
-      // Calculate player rank based on current score
-      if (currentScore > 0) {
-        const rank = mockLeaderboardData.filter(entry => entry.score > currentScore).length + 1
-        setPlayerRank(rank)
-      }
-    }, 1000)
-  }, [currentScore])
+    fetchLeaderboard();
+  }, []);
 
   const getRankIcon = (rank) => {
     switch (rank) {
       case 1:
-        return <Trophy className="h-5 w-5 text-yellow-500" />
+        return <Crown className="h-5 w-5 text-yellow-500" />;
       case 2:
-        return <Medal className="h-5 w-5 text-gray-400" />
+        return <Trophy className="h-5 w-5 text-gray-400" />;
       case 3:
-        return <Award className="h-5 w-5 text-amber-600" />
+        return <Medal className="h-5 w-5 text-amber-600" />;
       default:
-        return <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs font-bold">{rank}</div>
+        return <Award className="h-5 w-5 text-gray-500" />;
     }
-  }
+  };
 
-  const formatAddress = (address) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }
+  const getRankBadgeVariant = (rank) => {
+    switch (rank) {
+      case 1:
+        return 'default';
+      case 2:
+        return 'secondary';
+      case 3:
+        return 'outline';
+      default:
+        return 'outline';
+    }
+  };
 
-  const formatTimeAgo = (timestamp) => {
-    const diff = Date.now() - timestamp
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    if (hours < 1) return "Just now"
-    if (hours === 1) return "1 hour ago"
-    return `${hours} hours ago`
-  }
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h ago`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      return `${diffInDays}d ago`;
+    }
+  };
 
-  return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      {/* Current Player Stats */}
-      {currentScore > 0 && (
-        <Card className="temporal-glow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Your Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold temporal-text">{currentScore}</div>
-                <div className="text-sm text-muted-foreground">Score</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{currentEfficiency}%</div>
-                <div className="text-sm text-muted-foreground">Efficiency</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-accent">{currentLoop}</div>
-                <div className="text-sm text-muted-foreground">Loops</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-chart-3">#{playerRank || "—"}</div>
-                <div className="text-sm text-muted-foreground">Rank</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Global Leaderboard */}
+  if (loading) {
+    return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-500" />
+            <Trophy className="h-5 w-5" />
             Global Leaderboard
           </CardTitle>
           <CardDescription>
-            Top temporal architects across all dimensions
+            Top temporal architects across the Monad network
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4 p-4 rounded-lg bg-muted animate-pulse">
-                  <div className="w-8 h-8 bg-muted-foreground/20 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted-foreground/20 rounded w-1/4" />
-                    <div className="h-3 bg-muted-foreground/20 rounded w-1/2" />
-                  </div>
-                  <div className="w-16 h-4 bg-muted-foreground/20 rounded" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {leaderboardData.map((entry) => (
-                <div
-                  key={entry.rank}
-                  className={`flex items-center space-x-4 p-4 rounded-lg transition-all duration-300 hover:bg-muted/50 ${
-                    entry.address === playerAddress ? 'bg-primary/10 border border-primary/20' : 'bg-muted/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-center w-8">
-                    {getRankIcon(entry.rank)}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold truncate">{entry.username}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {formatAddress(entry.address)}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatTimeAgo(entry.timestamp)}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="text-center">
-                      <div className="font-bold temporal-text">{entry.score.toLocaleString()}</div>
-                      <div className="text-xs text-muted-foreground">Score</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-bold text-primary">{entry.efficiency}%</div>
-                      <div className="text-xs text-muted-foreground">Eff</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-bold text-accent">{entry.loops}</div>
-                      <div className="text-xs text-muted-foreground">Loops</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Leaderboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Clock className="h-8 w-8 mx-auto mb-2 text-primary" />
-            <div className="text-2xl font-bold">24h</div>
-            <div className="text-sm text-muted-foreground">Reset Period</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Zap className="h-8 w-8 mx-auto mb-2 text-accent" />
-            <div className="text-2xl font-bold">1,247</div>
-            <div className="text-sm text-muted-foreground">Active Players</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Target className="h-8 w-8 mx-auto mb-2 text-chart-3" />
-            <div className="text-2xl font-bold">∞</div>
-            <div className="text-sm text-muted-foreground">Possibilities</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Monad Integration Info */}
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="text-primary">Powered by Monad Games ID</CardTitle>
-          <CardDescription>
-            Secure, transparent, and verifiable leaderboards on the Monad Testnet
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="text-sm font-medium">Blockchain Integration</div>
-              <div className="text-xs text-muted-foreground">
-                All scores are recorded on-chain for complete transparency
-              </div>
-            </div>
-            <Badge variant="secondary" className="temporal-glow">
-              Testnet MON Rewards
-            </Badge>
+          <div className="flex items-center justify-center py-8">
+            <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+            <span>Loading leaderboard...</span>
           </div>
         </CardContent>
       </Card>
-    </div>
-  )
-}
+    );
+  }
 
-export default Leaderboard
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5" />
+            Global Leaderboard
+          </CardTitle>
+          <CardDescription>
+            Top temporal architects across the Monad network
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={fetchLeaderboard} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5" />
+              Global Leaderboard
+            </CardTitle>
+            <CardDescription>
+              Top temporal architects across the Monad network
+            </CardDescription>
+          </div>
+          <Button onClick={fetchLeaderboard} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {leaderboard.length === 0 ? (
+          <div className="text-center py-8">
+            <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">No scores recorded yet</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Be the first to complete a temporal challenge!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {leaderboard.map((player, index) => {
+              const isCurrentUser = hasUsername && username && player.username === username;
+              
+              return (
+                <div
+                  key={`${player.playerAddress}-${index}`}
+                  className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-200 ${
+                    isCurrentUser 
+                      ? 'bg-primary/10 border-primary/20 temporal-glow' 
+                      : 'bg-muted/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      {getRankIcon(player.rank)}
+                      <Badge variant={getRankBadgeVariant(player.rank)}>
+                        #{player.rank}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <User className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-semibold flex items-center gap-2">
+                          {player.username}
+                          {isCurrentUser && (
+                            <Badge variant="secondary" className="text-xs">
+                              You
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {player.playerAddress?.slice(0, 6)}...{player.playerAddress?.slice(-4)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="font-bold text-lg">{player.score.toLocaleString()}</div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Zap className="h-3 w-3" />
+                        {player.efficiency}%
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <RotateCcw className="h-3 w-3" />
+                        {player.loops}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatTimestamp(player.timestamp)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Trophy className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm">Leaderboard Info</span>
+          </div>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>• Scores are verified and recorded on Monad Testnet</p>
+            <p>• Rankings update in real-time across all games</p>
+            <p>• Your Monad Games ID preserves your identity across games</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default Leaderboard;
 
