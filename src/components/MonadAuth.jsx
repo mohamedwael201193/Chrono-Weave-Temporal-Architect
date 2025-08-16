@@ -32,6 +32,36 @@ const MonadAuth = () => {
     );
   }
 
+  if (error && !authenticated) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            Connection Error
+          </CardTitle>
+          <CardDescription>
+            There was an issue connecting to Monad Games ID.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button 
+            onClick={login}
+            className="w-full temporal-glow"
+            size="lg"
+          >
+            <Wallet className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!authenticated) {
     return (
       <Card>
@@ -45,13 +75,6 @@ const MonadAuth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="space-y-3">
             <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
               <Shield className="h-5 w-5 text-primary" />
@@ -239,4 +262,5 @@ const MonadAuth = () => {
 };
 
 export default MonadAuth;
+
 

@@ -25,7 +25,7 @@ export const privyConfig = {
   appId: import.meta.env.VITE_PRIVY_APP_ID, // Your Privy App ID from .env.local
   config: {
     loginMethodsAndOrder: {
-      primary: ['email', 'wallet', 'privy:cmd8euall0037le0my79qpz42'], // Use 'privy:' prefix for cross-app ID
+      primary: ['privy:cmd8euall0037le0my79qpz42'], // Only Monad Games ID for now
     },
     appearance: {
       theme: 'dark',
