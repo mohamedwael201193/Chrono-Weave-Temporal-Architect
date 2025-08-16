@@ -3,132 +3,90 @@ import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
-import { Wallet, User, Shield, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react'
+import { Wallet, User, Shield, ExternalLink, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { useMonadGamesID } from '../hooks/useMonadGamesID.js'
 
 const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [isConnected, setIsConnected] = useState(false)
-  const [userInfo, setUserInfo] = useState(null)
-  const [error, setError] = useState(null)
+  const {
+    ready,
+    authenticated,
+    isConnected,
+    address,
+    user,
+    isRegistered,
+    username,
+    gameProfile,
+    loading,
+    error,
+    connectWallet,
+    disconnectWallet,
+    registerGame,
+    checkRegistration,
+  } = useMonadGamesID()
 
-  // Check if already connected on component mount
+  const [registering, setRegistering] = useState(false)
+
+  // Handle successful authentication
   useEffect(() => {
-    checkExistingConnection()
-  }, [])
+    if (authenticated && isConnected && address && onAuthSuccess) {
+      onAuthSuccess({
+        address,
+        username: username || `Player${address.slice(-4)}`,
+        isRegistered,
+        gameProfile,
+      })
+    }
+  }, [authenticated, isConnected, address, username, isRegistered, gameProfile, onAuthSuccess])
 
-  const checkExistingConnection = async () => {
+  // Handle errors
+  useEffect(() => {
+    if (error && onAuthError) {
+      onAuthError(error)
+    }
+  }, [error, onAuthError])
+
+  const handleConnect = async () => {
     try {
-      // Check if user is already connected to Monad Games ID
-      // This would integrate with Privy Global wallet
-      const savedConnection = localStorage.getItem('monad_games_id_connection')
-      if (savedConnection) {
-        const connectionData = JSON.parse(savedConnection)
-        setUserInfo(connectionData)
-        setIsConnected(true)
-        if (onAuthSuccess) {
-          onAuthSuccess(connectionData)
-        }
-      }
+      await connectWallet()
     } catch (err) {
-      console.error('Error checking existing connection:', err)
+      console.error('Connection failed:', err)
     }
   }
 
-  const connectToMonadGamesID = async () => {
-    setIsConnecting(true)
-    setError(null)
-
+  const handleRegisterGame = async () => {
     try {
-      // Simulate Monad Games ID connection process
-      // In real implementation, this would integrate with Privy Global wallet
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Mock successful connection
-      const mockUserInfo = {
-        username: `Player${Math.floor(Math.random() * 10000)}`,
-        address: `0x${Math.random().toString(16).substr(2, 40)}`,
-        gameId: `monad_${Math.random().toString(36).substr(2, 9)}`,
-        connectedAt: Date.now(),
-        network: 'Monad Testnet'
-      }
-
-      setUserInfo(mockUserInfo)
-      setIsConnected(true)
-      
-      // Save connection to localStorage
-      localStorage.setItem('monad_games_id_connection', JSON.stringify(mockUserInfo))
-
-      if (onAuthSuccess) {
-        onAuthSuccess(mockUserInfo)
-      }
-    } catch (err) {
-      setError('Failed to connect to Monad Games ID. Please try again.')
-      if (onAuthError) {
-        onAuthError(err)
-      }
-    } finally {
-      setIsConnecting(false)
-    }
-  }
-
-  const disconnect = () => {
-    setIsConnected(false)
-    setUserInfo(null)
-    localStorage.removeItem('monad_games_id_connection')
-  }
-
-  const registerGame = async () => {
-    try {
-      // Simulate game registration with Monad Games ID
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // In real implementation, this would call the Monad Games ID smart contract
-      console.log('Game registered with Monad Games ID')
-      
-      return {
-        gameId: 'chrono-weave-temporal-architect',
-        contractAddress: '0x' + Math.random().toString(16).substr(2, 40),
-        registered: true
-      }
+      setRegistering(true)
+      await registerGame()
+      await checkRegistration() // Refresh registration status
     } catch (err) {
       console.error('Game registration failed:', err)
-      throw err
+    } finally {
+      setRegistering(false)
     }
   }
 
-  const submitScore = async (score, efficiency, loops) => {
-    if (!isConnected || !userInfo) {
-      throw new Error('Not connected to Monad Games ID')
-    }
-
+  const handleDisconnect = async () => {
     try {
-      // Simulate score submission to blockchain
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const scoreData = {
-        player: userInfo.address,
-        score,
-        efficiency,
-        loops,
-        timestamp: Date.now(),
-        gameId: 'chrono-weave-temporal-architect'
-      }
-
-      // In real implementation, this would submit to Monad smart contract
-      console.log('Score submitted to Monad Games ID:', scoreData)
-      
-      return {
-        transactionHash: '0x' + Math.random().toString(16).substr(2, 64),
-        blockNumber: Math.floor(Math.random() * 1000000),
-        success: true
-      }
+      await disconnectWallet()
     } catch (err) {
-      console.error('Score submission failed:', err)
-      throw err
+      console.error('Disconnect failed:', err)
     }
   }
 
-  if (isConnected && userInfo) {
+  // Loading state
+  if (!ready) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Initializing Monad Games ID...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Connected and registered state
+  if (authenticated && isConnected && isRegistered) {
     return (
       <Card className="temporal-glow">
         <CardHeader>
@@ -147,30 +105,30 @@ const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
                 <User className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="font-semibold">{userInfo.username}</div>
+                <div className="font-semibold">{username || `Player${address?.slice(-4)}`}</div>
                 <div className="text-sm text-muted-foreground">
-                  {userInfo.address.slice(0, 6)}...{userInfo.address.slice(-4)}
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
                 </div>
               </div>
             </div>
             <div className="text-right">
               <Badge variant="secondary" className="mb-1">
-                {userInfo.network}
+                Monad Testnet
               </Badge>
               <div className="text-xs text-muted-foreground">
-                Connected {new Date(userInfo.connectedAt).toLocaleTimeString()}
+                Registered Player
               </div>
             </div>
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={disconnect}>
+            <Button variant="outline" size="sm" onClick={handleDisconnect}>
               Disconnect
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <a href="https://monad.xyz" target="_blank" rel="noopener noreferrer">
+              <a href="https://monad-games-id-site.vercel.app" target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Monad Network
+                Monad Games ID
               </a>
             </Button>
           </div>
@@ -179,6 +137,86 @@ const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
     )
   }
 
+  // Connected but not registered state
+  if (authenticated && isConnected && !isRegistered) {
+    return (
+      <Card className="border-yellow-500/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-yellow-500" />
+            Complete Registration
+          </CardTitle>
+          <CardDescription>
+            Register with Monad Games ID to compete on the leaderboard
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
+                <Wallet className="h-5 w-5 text-black" />
+              </div>
+              <div>
+                <div className="font-semibold">Wallet Connected</div>
+                <div className="text-sm text-muted-foreground">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </div>
+              </div>
+            </div>
+            <Badge variant="outline">
+              Registration Required
+            </Badge>
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              To compete on the global leaderboard, you need to register with Monad Games ID.
+              This creates your cross-game identity on the Monad network.
+            </div>
+            
+            <Button 
+              onClick={handleRegisterGame}
+              disabled={registering}
+              className="w-full"
+            >
+              {registering ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Registering...
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Register with Monad Games ID
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleDisconnect}>
+              Disconnect
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://monad-games-id-site.vercel.app" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Learn More
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Not connected state
   return (
     <Card>
       <CardHeader>
@@ -187,7 +225,7 @@ const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
           Connect to Monad Games ID
         </CardTitle>
         <CardDescription>
-          Sign in with your Monad Games ID to compete on the global leaderboard
+          Sign in with your wallet to compete on the global leaderboard
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -203,7 +241,7 @@ const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
             <Shield className="h-5 w-5 text-primary" />
             <div className="text-sm">
               <div className="font-medium">Secure Authentication</div>
-              <div className="text-muted-foreground">Powered by Privy Global wallet</div>
+              <div className="text-muted-foreground">Powered by Privy wallet infrastructure</div>
             </div>
           </div>
 
@@ -211,7 +249,7 @@ const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
             <CheckCircle className="h-5 w-5 text-green-500" />
             <div className="text-sm">
               <div className="font-medium">Verifiable Scores</div>
-              <div className="text-muted-foreground">All achievements recorded on-chain</div>
+              <div className="text-muted-foreground">All achievements recorded on Monad Testnet</div>
             </div>
           </div>
 
@@ -219,33 +257,33 @@ const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
             <User className="h-5 w-5 text-accent" />
             <div className="text-sm">
               <div className="font-medium">Cross-Game Identity</div>
-              <div className="text-muted-foreground">One username across all Monad games</div>
+              <div className="text-muted-foreground">One identity across all Monad games</div>
             </div>
           </div>
         </div>
 
         <Button 
-          onClick={connectToMonadGamesID} 
-          disabled={isConnecting}
+          onClick={handleConnect}
+          disabled={loading}
           className="w-full temporal-glow"
           size="lg"
         >
-          {isConnecting ? (
+          {loading ? (
             <>
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
               Connecting...
             </>
           ) : (
             <>
               <Wallet className="h-4 w-4 mr-2" />
-              Sign in with Monad Games ID
+              Connect Wallet
             </>
           )}
         </Button>
 
         <div className="text-center">
           <Button variant="link" size="sm" asChild>
-            <a href="https://monad-foundation.notion.site/How-to-integrate-Monad-Games-ID-24e6367594f2802b8dd1ef3fbf3d136a" target="_blank" rel="noopener noreferrer">
+            <a href="https://monad-games-id-site.vercel.app" target="_blank" rel="noopener noreferrer">
               Learn more about Monad Games ID
               <ExternalLink className="h-3 w-3 ml-1" />
             </a>
@@ -256,55 +294,5 @@ const MonadAuth = ({ onAuthSuccess, onAuthError }) => {
   )
 }
 
-// Export the score submission function for use in other components
-export { MonadAuth as default }
-export const useMonadGamesID = () => {
-  const [isConnected, setIsConnected] = useState(false)
-  const [userInfo, setUserInfo] = useState(null)
-
-  useEffect(() => {
-    const savedConnection = localStorage.getItem('monad_games_id_connection')
-    if (savedConnection) {
-      const connectionData = JSON.parse(savedConnection)
-      setUserInfo(connectionData)
-      setIsConnected(true)
-    }
-  }, [])
-
-  const submitScore = async (score, efficiency, loops) => {
-    if (!isConnected || !userInfo) {
-      throw new Error('Not connected to Monad Games ID')
-    }
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const scoreData = {
-        player: userInfo.address,
-        score,
-        efficiency,
-        loops,
-        timestamp: Date.now(),
-        gameId: 'chrono-weave-temporal-architect'
-      }
-
-      console.log('Score submitted to Monad Games ID:', scoreData)
-      
-      return {
-        transactionHash: '0x' + Math.random().toString(16).substr(2, 64),
-        blockNumber: Math.floor(Math.random() * 1000000),
-        success: true
-      }
-    } catch (err) {
-      console.error('Score submission failed:', err)
-      throw err
-    }
-  }
-
-  return {
-    isConnected,
-    userInfo,
-    submitScore
-  }
-}
+export default MonadAuth
 
